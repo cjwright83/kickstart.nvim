@@ -214,6 +214,14 @@ vim.api.nvim_create_autocmd('TextYankPost', {
   end,
 })
 
+vim.keymap.set('n', '<leader>e', vim.diagnostic.open_float)
+
+-- Update on leaving insert mode
+vim.api.nvim_create_autocmd('InsertLeave', {
+  desc = 'Write to file on leaving insert mode',
+  command = 'update',
+})
+
 -- [[ Install `lazy.nvim` plugin manager ]]
 --    See `:help lazy.nvim.txt` or https://github.com/folke/lazy.nvim for more info
 local lazypath = vim.fn.stdpath 'data' .. '/lazy/lazy.nvim'
@@ -665,7 +673,40 @@ require('lazy').setup({
       local servers = {
         -- clangd = {},
         -- gopls = {},
-        -- pyright = {},
+        pyright = {},
+        tsserver = {},
+        dockerls = {},
+        sqlls = {},
+        jsonls = {
+          filetypes = { 'json', 'jsonc' },
+          settings = {
+            json = {
+              -- Schemas https://www.schemastore.org
+              schemas = {
+                {
+                  fileMatch = { 'package.json' },
+                  url = 'https://json.schemastore.org/package.json',
+                },
+                {
+                  fileMatch = { 'tsconfig*.json' },
+                  url = 'https://json.schemastore.org/tsconfig.json',
+                },
+                {
+                  fileMatch = {
+                    '.prettierrc',
+                    '.prettierrc.json',
+                    'prettier.config.json',
+                  },
+                  url = 'https://json.schemastore.org/prettierrc.json',
+                },
+                {
+                  fileMatch = { '.eslintrc', '.eslintrc.json' },
+                  url = 'https://json.schemastore.org/eslintrc.json',
+                },
+              },
+            },
+          },
+        },
         -- rust_analyzer = {},
         -- ... etc. See `:help lspconfig-all` for a list of all the pre-configured LSPs
         --
@@ -707,6 +748,11 @@ require('lazy').setup({
       -- for you, so that they are available from within Neovim.
       local ensure_installed = vim.tbl_keys(servers or {})
       vim.list_extend(ensure_installed, {
+        'black',
+        'eslint_d',
+        'prettierd',
+        'flake8',
+        'isort',
         'stylua', -- Used to format Lua code
       })
       require('mason-tool-installer').setup { ensure_installed = ensure_installed }
@@ -736,7 +782,7 @@ require('lazy').setup({
       {
         '<leader>f',
         function()
-          require('conform').format { async = true, lsp_format = 'fallback' }
+          require('conform').format { async = true, lsp_fallback = false }
         end,
         mode = '',
         desc = '[F]ormat buffer',
@@ -761,10 +807,16 @@ require('lazy').setup({
       formatters_by_ft = {
         lua = { 'stylua' },
         -- Conform can also run multiple formatters sequentially
-        -- python = { "isort", "black" },
+        python = { 'isort', 'black' },
         --
         -- You can use 'stop_after_first' to run the first available formatter from the list
-        -- javascript = { "prettierd", "prettier", stop_after_first = true },
+        javascript = { 'prettierd', 'prettier', stop_after_first = true },
+        typescript = { 'prettierd', 'prettier', stop_after_first = true },
+      },
+      formatters = {
+        black = {
+          prepend_args = { '-S' },
+        },
       },
     },
   },
@@ -845,6 +897,17 @@ require('lazy').setup({
         documentation = { auto_show = false, auto_show_delay_ms = 500 },
       },
 
+      -- Accept ([y]es) the completion.
+      --  This will auto-import if your LSP supports it.
+      --  This will expand snippets if the LSP sent a snippet.
+      --['<C-y>'] = cmp.mapping.confirm { select = true },
+
+      -- If you prefer more traditional completion keymaps,
+      -- you can uncomment the following lines
+      ['<CR>'] = cmp.mapping.confirm { select = true },
+      ['<Tab>'] = cmp.mapping.select_next_item(),
+      ['<S-Tab>'] = cmp.mapping.select_prev_item(),
+
       sources = {
         default = { 'lsp', 'path', 'snippets', 'lazydev' },
         providers = {
@@ -873,7 +936,7 @@ require('lazy').setup({
     -- change the command in the config to whatever the name of that colorscheme is.
     --
     -- If you want to see what colorschemes are already installed, you can use `:Telescope colorscheme`.
-    'folke/tokyonight.nvim',
+    'rebelot/kanagawa.nvim',
     priority = 1000, -- Make sure to load this before all the other start plugins.
     config = function()
       ---@diagnostic disable-next-line: missing-fields
@@ -886,7 +949,10 @@ require('lazy').setup({
       -- Load the colorscheme here.
       -- Like many other themes, this one has different styles, and you could load
       -- any other, such as 'tokyonight-storm', 'tokyonight-moon', or 'tokyonight-day'.
-      vim.cmd.colorscheme 'tokyonight-night'
+      vim.cmd.colorscheme 'kanagawa'
+
+      -- You can configure highlights by doing something like:
+      vim.cmd.hi 'Comment gui=none'
     end,
   },
 
@@ -966,17 +1032,17 @@ require('lazy').setup({
   --  Uncomment any of the lines below to enable them (you will need to restart nvim).
   --
   -- require 'kickstart.plugins.debug',
-  -- require 'kickstart.plugins.indent_line',
-  -- require 'kickstart.plugins.lint',
+  require 'kickstart.plugins.indent_line',
+  require 'kickstart.plugins.lint',
   -- require 'kickstart.plugins.autopairs',
   -- require 'kickstart.plugins.neo-tree',
-  -- require 'kickstart.plugins.gitsigns', -- adds gitsigns recommend keymaps
+  require 'kickstart.plugins.gitsigns', -- adds gitsigns recommend keymaps
 
   -- NOTE: The import below can automatically add your own plugins, configuration, etc from `lua/custom/plugins/*.lua`
   --    This is the easiest way to modularize your config.
   --
   --  Uncomment the following line and add your plugins to `lua/custom/plugins/*.lua` to get going.
-  -- { import = 'custom.plugins' },
+  { import = 'custom.plugins' },
   --
   -- For additional information with loading, sourcing and examples see `:help lazy.nvim-🔌-plugin-spec`
   -- Or use telescope!
